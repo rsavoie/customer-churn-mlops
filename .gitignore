@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+models/*.joblib
+models/*.pkl
+models/*.json
+!models/.gitkeep
+data/processed/
+data/scored/
+!data/fixtures/batch-input.csv
+!data/raw/Telco-Customer-Churn.csv
