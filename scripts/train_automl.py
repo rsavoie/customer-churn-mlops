@@ -59,3 +59,7 @@ print(
     f"https://console.cloud.google.com/vertex-ai/training/training-pipelines?project={PROJECT}"
 )
 print("Cuando termine, el modelo 'churn-automl' aparece en Registro de modelos con su evaluacion.")
+
+# Con sync=False el SDK deja un hilo de polling en background que cuelga el proceso al salir.
+# Salimos ya: el entrenamiento corre server-side y no depende de este cliente.
+os._exit(0)
