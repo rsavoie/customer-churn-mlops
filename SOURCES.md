@@ -98,9 +98,9 @@ Comandos mínimos de trazabilidad en Cloud Shell:
 python scripts/verify_dataset.py
 sha256sum data/raw/Telco-Customer-Churn.csv
 
-gsutil cp data/raw/Telco-Customer-Churn.csv "gs://${BUCKET}/raw/Telco-Customer-Churn.csv"
-gsutil cp data/raw/Telco-Customer-Churn.csv.sha256 "gs://${BUCKET}/raw/Telco-Customer-Churn.csv.sha256"
-gsutil ls -l "gs://${BUCKET}/raw/"
+gcloud storage cp data/raw/Telco-Customer-Churn.csv "gs://${BUCKET}/raw/Telco-Customer-Churn.csv"
+gcloud storage cp data/raw/Telco-Customer-Churn.csv.sha256 "gs://${BUCKET}/raw/Telco-Customer-Churn.csv.sha256"
+gcloud storage ls "gs://${BUCKET}/raw/"
 ```
 
 ## Fuentes técnicas GCP consultadas

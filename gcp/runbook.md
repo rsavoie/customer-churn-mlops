@@ -1,13 +1,19 @@
 # Runbook GCP, Customer Churn
 
-Este runbook acompaña el hilo conductor de Churn en las clases 4 a 7. Está escrito para Cloud Shell o una terminal con `gcloud` autenticado.
+Este runbook acompaña el hilo conductor de Churn en las clases 4 a 7. Está escrito para la **terminal**
+de Cloud Shell (con `gcloud` autenticado).
+
+> Para el lab de la clase 4 dentro del **editor** de Cloud Shell, usar la notebook
+> `notebooks/c04_vertex_cloudshell.ipynb`, que habla con la nube por las librerías Python de Google
+> (`google-cloud-storage`). Motivo: el kernel del editor no hereda el entorno de la sesión y `gcloud`
+> desde ahí queda sin proyecto ni auth. Los comandos `gcloud` de este runbook son para la terminal.
 
 ## Variables base
 
 ```bash
 export PROJECT_ID="$(gcloud config get-value project)"
 export REGION="us-central1"
-export BUCKET="${PROJECT_ID}-mlops-2026-churn"
+export BUCKET="${PROJECT_ID}-churn"
 export REPO="mlops-2026"
 export SERVICE="churn-api"
 export IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE}:latest"
@@ -35,10 +41,10 @@ sha256sum data/raw/Telco-Customer-Churn.csv
 El SHA-256 esperado está documentado en `SOURCES.md` y en `data/raw/Telco-Customer-Churn.csv.sha256`.
 
 ```bash
-gsutil mb -l "${REGION}" "gs://${BUCKET}" || true
-gsutil cp data/raw/Telco-Customer-Churn.csv "gs://${BUCKET}/raw/Telco-Customer-Churn.csv"
-gsutil cp data/raw/Telco-Customer-Churn.csv.sha256 "gs://${BUCKET}/raw/Telco-Customer-Churn.csv.sha256"
-gsutil ls -l "gs://${BUCKET}/raw/"
+gcloud storage buckets create "gs://${BUCKET}" --location="${REGION}" || true
+gcloud storage cp data/raw/Telco-Customer-Churn.csv "gs://${BUCKET}/raw/Telco-Customer-Churn.csv"
+gcloud storage cp data/raw/Telco-Customer-Churn.csv.sha256 "gs://${BUCKET}/raw/Telco-Customer-Churn.csv.sha256"
+gcloud storage ls "gs://${BUCKET}/raw/"
 ```
 
 ## Clase 4, Vertex AI y batch
