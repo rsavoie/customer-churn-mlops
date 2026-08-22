@@ -6,6 +6,8 @@ import hashlib
 from pathlib import Path
 
 
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_INPUT = ROOT / "data" / "raw" / "Telco-Customer-Churn.csv"
 EXPECTED_SHA256 = "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91"
 EXPECTED_COLUMNS = [
     "customerID",
@@ -71,7 +73,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Verifica el dataset canónico de Churn.")
     parser.add_argument(
         "--input",
-        default="data/raw/Telco-Customer-Churn.csv",
+        default=DEFAULT_INPUT,
         type=Path,
         help="Ruta al CSV crudo.",
     )
