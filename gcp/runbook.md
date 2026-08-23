@@ -21,13 +21,29 @@ export IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE}:latest"
 
 ## APIs necesarias
 
+Las APIs se habilitan **por proyecto**: un proyecto nuevo nace con casi todo apagado, así que hay que
+prenderlas de nuevo en cada proyecto. Habilitar una API es gratis (se paga el uso, no tenerla encendida).
+
+Ver qué está habilitado (por si ya estaban):
+
 ```bash
-gcloud services enable \
-  aiplatform.googleapis.com \
-  artifactregistry.googleapis.com \
-  cloudbuild.googleapis.com \
-  run.googleapis.com
+gcloud services list --enabled
 ```
+
+**Clase 4** (dato a la nube, entrenamiento y batch) — el mínimo son dos:
+
+```bash
+gcloud services enable aiplatform.googleapis.com storage.googleapis.com
+```
+
+**Clases 6-7** (imagen, build y Cloud Run), cuando lleguen:
+
+```bash
+gcloud services enable artifactregistry.googleapis.com cloudbuild.googleapis.com run.googleapis.com
+```
+
+> `gcloud services enable` y `gcloud services list` son idénticos en bash (Cloud Shell) y en PowerShell
+> (local): solo cambia el shell alrededor, no la línea de gcloud. Requiere billing vinculado al proyecto.
 
 ## Dataset en Cloud Storage
 
