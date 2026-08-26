@@ -12,6 +12,7 @@ La idea docente es simple: en Canvas definimos qué decisión quiere tomar CRM; 
 - `notebooks/churn_baseline_smoke.ipynb`: notebook corto de entrenamiento y scoring local; es el puente Canvas→sistema de las clases 2 y 3, distinto del lab de la clase 4.
 - `scripts/verify_dataset.py`: chequeo de forma del dataset.
 - `scripts/train_baseline.py`: baseline local con regresión logística.
+- `scripts/download_model.py`: baja el modelo del bucket a `models/` (preparación de la **clase 5**, cuando la copia local ya no está).
 - `scripts/score_batch.py`: scoring batch local y ranking por prioridad.
 - `scripts/train_automl.py` y `scripts/batch_predict_automl.py`: demo AutoML gestionado por SDK de Vertex (se corre desde la terminal; ver `gcp/runbook.md` §Clase 4).
 - `app/`: API FastAPI con `/healthz`, `/predict` y `/batch-score`.

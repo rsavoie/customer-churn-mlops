@@ -118,21 +118,64 @@ python scripts/train_baseline.py
 python scripts/score_batch.py --input data/fixtures/batch-input.csv
 ```
 
-## Clase 5, API local
+## Clase 5, la API (serving local)
+
+El lab corre en la **terminal** de Cloud Shell. El modelo quedó en el bucket al cerrar la
+clase 4 (la notebook lo subió a `models/` y borró la copia local), así que el primer paso es
+**recuperarlo**:
+
+```bash
+python scripts/download_model.py
+# Sin GCP a mano, el fallback equivalente es reentrenarlo en segundos:
+# python scripts/train_baseline.py
+```
+
+Levantá la API. El puerto **8080** es el que abre el **Web Preview** de Cloud Shell con un
+click (botón "Vista previa en la Web", arriba a la derecha):
 
 ```bash
 export MODEL_BACKEND="local"
 export MODEL_PATH="models/churn-baseline.joblib"
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
-Prueba:
+Con la API viva, el contrato se explora solo en **`/docs`** (Swagger UI que genera FastAPI):
+abrí el Web Preview y agregá `/docs` a la URL.
+
+Predicción online de un cliente:
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8000/predict" \
+curl -s -X POST "http://127.0.0.1:8080/predict" \
   -H "Content-Type: application/json" \
   --data @data/fixtures/customer-example.json
 ```
+
+Scoring batch (devuelve la lista ordenada por `priority_score`):
+
+```bash
+curl -s -X POST "http://127.0.0.1:8080/batch-score" \
+  -H "Content-Type: application/json" \
+  --data @data/fixtures/batch-request.json
+```
+
+Validación del contrato: un payload con un campo mal tipado (acá `MonthlyCharges` como texto)
+devuelve **422** con el detalle, **sin** tocar el modelo:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "http://127.0.0.1:8080/predict" \
+  -H "Content-Type: application/json" \
+  --data @data/fixtures/invalid-example.json
+```
+
+Salud del servicio:
+
+```bash
+curl -s "http://127.0.0.1:8080/healthz"
+```
+
+> A diferencia de la clase 6, acá no queda nada desplegado: `uvicorn` es un proceso; al cerrar
+> Cloud Shell se apaga y no genera costo. El servicio permanente con `https` público llega en
+> la clase 6 con Cloud Run.
 
 ## Clase 6, Docker y Cloud Run
 
