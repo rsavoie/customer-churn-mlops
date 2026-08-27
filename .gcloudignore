@@ -1,0 +1,29 @@
+# Contexto de build para Cloud Build (`gcloud builds submit`).
+#
+# IMPORTANTE: sin este archivo, gcloud usa .gitignore como fallback, y .gitignore
+# excluye models/*.joblib -> el contexto subiria SIN el modelo y el Dockerfile
+# hornearia una imagen sin modelo (/healthz devolveria model_loaded: false).
+# Por eso aca NO excluimos models/*.joblib: lo mantenemos en el contexto para que
+# `COPY models ./models` lo incluya en la imagen.
+#
+# La imagen solo necesita: Dockerfile, requirements.txt, app/ y models/*.joblib.
+# Todo lo demas se excluye para mantener el upload liviano.
+
+.git
+.gitignore
+.gcloudignore
+.dockerignore
+
+.venv
+__pycache__/
+*.pyc
+.pytest_cache/
+
+data/
+notebooks/
+tests/
+gcp/
+scripts/
+
+# metricas: no hacen falta en la imagen (el modelo si)
+models/*.json

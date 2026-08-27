@@ -185,6 +185,13 @@ Entrenar el modelo local antes de construir la imagen:
 python scripts/train_baseline.py
 ```
 
+> **Por qué el modelo tiene que estar antes del build.** La imagen hornea el modelo
+> (`COPY models ./models` en el `Dockerfile`), así que el `.joblib` tiene que existir en `models/`
+> cuando se sube el contexto. El repo incluye un **`.gcloudignore`** justo para esto: sin él,
+> `gcloud builds submit` cae de vuelta en `.gitignore` (que excluye `models/*.joblib`) y hornearía
+> una imagen **sin modelo** → el servicio arranca pero `/healthz` devuelve `model_loaded: false`.
+> El `.gcloudignore` mantiene el `.joblib` en el contexto y deja afuera lo que la imagen no necesita.
+
 Crear Artifact Registry:
 
 ```bash
