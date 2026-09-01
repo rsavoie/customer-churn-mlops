@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+import logging
+
 from fastapi.testclient import TestClient
 
 import app.main as main_module
+from app import observability
 from app.model_backend import ModelPrediction
 
 
@@ -84,3 +88,44 @@ def test_batch_score_is_sorted_by_priority(monkeypatch):
     body = response.json()
     assert body["count"] == 2
     assert body["predictions"][0]["priority_score"] > body["predictions"][1]["priority_score"]
+
+
+def test_predict_emits_structured_log_without_pii(monkeypatch):
+    events = []
+    monkeypatch.setattr(main_module, "log_event", lambda event, **fields: events.append((event, fields)))
+    client = make_client(monkeypatch)
+    client.post("/predict", json=example_payload())
+    assert events, "el endpoint debe emitir un evento estructurado"
+    event, fields = events[0]
+    assert event == "prediction"
+    assert "latency_ms" in fields
+    assert fields["decision"] in ("retention_queue", "monitor")
+    # Regla de la clase 7: nunca loguear features crudas del cliente (evitar PII).
+    for leaked in ("gender", "PaymentMethod", "MonthlyCharges", "tenure", "TotalCharges"):
+        assert leaked not in fields
+
+
+def test_log_event_is_valid_json_line():
+    records: list[str] = []
+    handler = logging.Handler()
+    handler.emit = lambda record: records.append(record.getMessage())
+    observability.logger.addHandler(handler)
+    try:
+        observability.log_event("prediction", latency_ms=1.2, decision="monitor")
+    finally:
+        observability.logger.removeHandler(handler)
+    payload = json.loads(records[-1])
+    assert payload["event"] == "prediction"
+    assert payload["latency_ms"] == 1.2
+    assert payload["decision"] == "monitor"
+
+
+def test_break_model_toggle_degrades_service(monkeypatch):
+    # Simula el "despliegue roto" del rollback: sin fake backend, build_backend debe fallar.
+    monkeypatch.setenv("BREAK_MODEL", "1")
+    monkeypatch.setattr(main_module, "_backend", None)
+    client = TestClient(main_module.app)
+    health = client.get("/healthz")
+    assert health.status_code == 200
+    assert health.json()["model_loaded"] is False
+    assert client.post("/predict", json=example_payload()).status_code == 503

@@ -238,30 +238,102 @@ curl -s -X POST "${SERVICE_URL}/predict" \
 
 ## Clase 7, operación
 
-Mirar logs:
+Arranca donde terminó la clase 6: la API ya está desplegada en Cloud Run. Recuperá la URL:
 
 ```bash
-gcloud run services logs read "${SERVICE}" --region "${REGION}" --limit 50
+export SERVICE_URL="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --format='value(status.url)')"
 ```
 
-Ver revisiones:
+Si el repo estaba clonado de antes, actualizalo para traer las piezas nuevas de observabilidad
+(`app/observability.py`, `scripts/smoke_load.py`, `scripts/check_drift.py`):
+
+```bash
+cd customer-churn-mlops/
+git pull
+```
+
+### 1. Generar carga y medir latencia
+
+`smoke_load.py` dispara N requests y reporta p50/p95/p99. El primer request paga el arranque en
+frío (cold start) de Cloud Run; los siguientes salen tibios. Además, deja tráfico para leer en los logs.
+
+```bash
+python scripts/smoke_load.py --url "${SERVICE_URL}" --n 100
+```
+
+### 2. Leer logs estructurados
+
+La API emite una línea JSON por predicción (latencia y decisión, sin datos personales). Cloud
+Logging **parsea ese JSON a campos consultables** (`jsonPayload`), así que en vez de un `grep` se
+filtra por campo y se piden las columnas que importan:
+
+```bash
+gcloud logging read 'resource.type="cloud_run_revision" AND jsonPayload.event="prediction"' \
+  --project "${PROJECT_ID}" --limit 6 \
+  --format="table(jsonPayload.latency_ms, jsonPayload.decision, jsonPayload.churn_probability, jsonPayload.customer_id)"
+```
+
+> `gcloud run services logs read "${SERVICE}" --region "${REGION}"` muestra el flujo de requests
+> (acceso). Las líneas JSON del app viajan a `jsonPayload`, no a texto plano, por eso los eventos
+> de predicción se consultan con `gcloud logging read`.
+
+### 3. Ver revisiones
+
+Cada despliegue crea una revisión. Se listan con:
 
 ```bash
 gcloud run revisions list --service "${SERVICE}" --region "${REGION}"
 ```
 
-Rollback por tráfico, reemplazando `REVISION_BUENA`:
+### 4. Romper a propósito: desplegar una revisión mala
+
+El toggle `BREAK_MODEL=1` simula un despliegue roto (la carga del modelo falla). **Correr esto en
+PowerShell si estás en Windows local** (Git Bash mangla los valores con `/` de `--set-env-vars`);
+en Cloud Shell va tal cual:
+
+```bash
+gcloud run deploy "${SERVICE}" \
+  --image "${IMAGE}" \
+  --region "${REGION}" \
+  --platform managed \
+  --allow-unauthenticated \
+  --set-env-vars MODEL_BACKEND=local,MODEL_PATH=/app/models/churn-baseline.joblib,BREAK_MODEL=1
+```
+
+Detectarlo, como lo detectaría el monitoreo: `/healthz` pasa a `degraded` y `/predict` corta con 503.
+
+```bash
+curl -s "${SERVICE_URL}/healthz"
+python scripts/smoke_load.py --url "${SERVICE_URL}" --n 20   # ahora los códigos son 503
+```
+
+### 5. Rollback por tráfico
+
+Sin reconstruir nada: se manda el 100% del tráfico a la última revisión buena (la de antes de
+`BREAK_MODEL`). Ver el nombre en `revisions list` y reemplazar `REVISION_BUENA`:
 
 ```bash
 gcloud run services update-traffic "${SERVICE}" \
   --region "${REGION}" \
   --to-revisions REVISION_BUENA=100
+curl -s "${SERVICE_URL}/healthz"   # vuelve a "ok"
 ```
 
-Monitoreo gestionado en Vertex AI:
+### 6. Drift offline (PSI)
 
-- Para endpoint de Vertex: activar Model Monitoring sobre el endpoint y definir umbrales de drift/skew.
-- Para Cloud Run: usar Cloud Logging, métricas de latencia, tasa de error, conteo de requests y muestras de payload sin datos sensibles.
+Responde "¿el mundo que modelé sigue siendo el mismo?" sin infraestructura extra:
+
+```bash
+python scripts/check_drift.py   # referencia vs ventana de producción simulada
+```
+
+### 7. Monitoreo gestionado (la opción de plataforma)
+
+- **Cloud Run**: Cloud Logging + métricas de latencia, tasa de error y conteo de requests (las que
+  acabamos de ver a mano ya vienen en el dashboard del servicio).
+- **Vertex AI**: si el modelo se sirve como endpoint de Vertex, activar **Model Monitoring** sobre
+  el endpoint y definir umbrales de drift/skew (lo que hicimos con PSI, gestionado). Nunca muestrear
+  payloads con datos sensibles.
 
 Nota 2026: parte de la documentación histórica de Vertex AI aparece hoy bajo URLs de **Gemini Enterprise Agent Platform**. Las fuentes técnicas vigentes usadas para este runbook están listadas en `SOURCES.md`.
 
@@ -275,3 +347,8 @@ gcloud artifacts docker images delete "${IMAGE}" --quiet || true
 ```
 
 Si se creó un endpoint en Vertex AI, undeploy y delete desde la consola o con `gcloud ai endpoints`.
+
+> **Clase 7, ojo:** hoy queda un servicio corriendo (a diferencia de las clases 4 y 5). Con el
+> escala a cero casi no cuesta, pero **lo que prendés, cuesta**: si no lo vas a usar, borralo con el
+> comando de arriba. Si lo dejás vivo para el TFI, verificá que la **revisión buena** es la que sirve
+> el tráfico (sin `BREAK_MODEL`): `curl -s "${SERVICE_URL}/healthz"` tiene que devolver `ok`.
