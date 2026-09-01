@@ -120,13 +120,21 @@ python scripts/score_batch.py --input data/fixtures/batch-input.csv
 
 ## Clase 5, la API (serving local)
 
-El lab corre en la **terminal** de Cloud Shell. El modelo quedó en el bucket al cerrar la
-clase 4 (la notebook lo subió a `models/` y borró la copia local), así que el primer paso es
-**recuperarlo**:
+El lab corre en la **terminal** de Cloud Shell. Como el repo lo clonaron en la clase 4 y esta
+clase suma `scripts/download_model.py`, arrancá actualizándolo:
+
+```bash
+cd customer-churn-mlops/
+git pull
+```
+
+El modelo quedó en el bucket al cerrar la clase 4 (la notebook lo subió a `models/` y borró la
+copia local), así que el primer paso es **recuperarlo**:
 
 ```bash
 python scripts/download_model.py
-# Sin GCP a mano, el fallback equivalente es reentrenarlo en segundos:
+# Si el bucket no tiene el modelo (lo borraste, o corriste la notebook con otro dato), regeneralo
+# corriendo de nuevo la notebook de la clase 4. Sin GCP a mano, el fallback local:
 # python scripts/train_baseline.py
 ```
 
