@@ -13,10 +13,15 @@ import os
 
 from google.cloud import aiplatform
 
-PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("DEVSHELL_PROJECT_ID") or "mlops-2026-itba"
+PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("DEVSHELL_PROJECT_ID") or "mlops-itba-2026"
 REGION = os.environ.get("REGION", "us-central1")
 BUCKET = os.environ.get("BUCKET", f"gs://{PROJECT}-churn")
-MODEL_ID = os.environ.get("MODEL_ID", "802186641195139072")  # churn-automl v1
+MODEL_ID = os.environ.get("MODEL_ID")  # churn-automl, especifico de TU proyecto
+if not MODEL_ID:
+    raise SystemExit(
+        "Falta MODEL_ID. Cuando 'churn-automl' aparezca en Registro de modelos, corre:\n"
+        "    MODEL_ID=<id-de-tu-modelo> python3 scripts/batch_predict_automl.py"
+    )
 
 aiplatform.init(project=PROJECT, location=REGION, staging_bucket=BUCKET)
 

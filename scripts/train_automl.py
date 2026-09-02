@@ -18,11 +18,17 @@ import os
 
 from google.cloud import aiplatform
 
-PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("DEVSHELL_PROJECT_ID") or "mlops-2026-itba"
+PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("DEVSHELL_PROJECT_ID") or "mlops-itba-2026"
 REGION = os.environ.get("REGION", "us-central1")
 BUCKET = os.environ.get("BUCKET", f"gs://{PROJECT}-churn")
-# Dataset tabular 'churn' ya creado en Vertex (ver Conjuntos de datos).
-DATASET_ID = os.environ.get("DATASET_ID", "7441626913061208064")
+# Dataset tabular 'churn' ya creado en Vertex (ver Conjuntos de datos). Es especifico de
+# TU proyecto, asi que se pasa por env; no hay un default valido para reusar.
+DATASET_ID = os.environ.get("DATASET_ID")
+if not DATASET_ID:
+    raise SystemExit(
+        "Falta DATASET_ID. Crea el dataset tabular 'churn' en Vertex y corre:\n"
+        "    DATASET_ID=<id-de-tu-dataset> python3 scripts/train_automl.py"
+    )
 
 aiplatform.init(project=PROJECT, location=REGION, staging_bucket=BUCKET)
 
