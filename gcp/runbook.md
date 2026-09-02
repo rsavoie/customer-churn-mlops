@@ -128,6 +128,17 @@ cd customer-churn-mlops/
 git pull
 ```
 
+Antes de bajar nada, confirmá que la terminal está en la **misma cuenta y proyecto de la clase 4**.
+Si no, `download_model.py` apuntaría al bucket de otro proyecto y fallaría con **403** (sin acceso) o
+"no existe el modelo":
+
+```bash
+gcloud config get-value account   # tiene que ser tu cuenta de la clase 4
+gcloud config get-value project   # tiene que ser tu proyecto de la clase 4
+# Si el proyecto no es el correcto, fijalo (poné TU Project ID):
+# gcloud config set project TU_PROYECTO_DE_LA_CLASE_4
+```
+
 El modelo quedó en el bucket al cerrar la clase 4 (la notebook lo subió a `models/` y borró la
 copia local), así que el primer paso es **recuperarlo**:
 
