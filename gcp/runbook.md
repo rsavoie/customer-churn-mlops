@@ -348,15 +348,39 @@ python scripts/check_drift.py   # referencia vs ventana de producción simulada
 
 Nota 2026: parte de la documentación histórica de Vertex AI aparece hoy bajo URLs de **Gemini Enterprise Agent Platform**. Las fuentes técnicas vigentes usadas para este runbook están listadas en `SOURCES.md`.
 
+### 8. Cleanup (al terminar la clase)
+
+Hoy **sí queda un servicio corriendo** (a diferencia de las clases 4 y 5). Con el escala a cero casi
+no cuesta, pero **lo que prendés, cuesta**: si no lo vas a usar, apagá todo. Se borra el **servicio**,
+la **imagen** y también el **repositorio de Artifact Registry**, para no dejar nada:
+
+```bash
+gcloud run services delete "${SERVICE}" --region "${REGION}" --quiet
+gcloud artifacts docker images delete "${IMAGE}" --quiet || true
+gcloud artifacts repositories delete "${REPO}" --location="${REGION}" --quiet || true
+```
+
+Si se creó un endpoint en Vertex AI, undeploy y delete desde la consola o con `gcloud ai endpoints`.
+
+> **Si lo dejás vivo para el TFI** (en vez de borrar): verificá que la **revisión buena** es la que
+> sirve el tráfico (sin `BREAK_MODEL`) con `curl -s "${SERVICE_URL}/health"` → `ok`. Si borraste todo,
+> la clase 8 lo reconstruye desde cero (ver abajo).
+
 ## Clase 8, integración y pre-demo
 
 La clase 8 no despliega ni construye algo nuevo: ensambla las piezas de las clases 4 a 7 en una demo
 desplegada y defendible, y verifica el **checklist de pre-demo** antes del coloquio.
 
-Si el servicio quedó borrado en el cleanup de la clase 7, redesplegalo (mismos comandos de la clase 6)
-y recuperá la URL:
+Si el servicio quedó borrado en el cleanup de la clase 7, rehacé el camino completo de la clase 6
+(ese cleanup también borró la imagen y el **Artifact Registry**): entrenar, recrear el registry,
+buildear y desplegar. Después recuperá la URL:
 
 ```bash
+python scripts/train_baseline.py
+gcloud artifacts repositories create "${REPO}" \
+  --repository-format=docker --location="${REGION}" \
+  --description="Artefactos MLOps 2026" || true
+gcloud builds submit --tag "${IMAGE}" .
 gcloud run deploy "${SERVICE}" \
   --image "${IMAGE}" \
   --region "${REGION}" \
@@ -385,18 +409,7 @@ fallback, quedan en la salida como recordatorio para tildar a mano.
 > Antes de la demo, mandá un request de precalentamiento (o corré `predemo_check.py` dos veces): el
 > primero paga el arranque en frío y el segundo muestra la latencia tibia real.
 
-## Cleanup
+### Cleanup al terminar la clase 8
 
-Usar cleanup al final de la clase cuando los recursos ya no se necesiten:
-
-```bash
-gcloud run services delete "${SERVICE}" --region "${REGION}" --quiet
-gcloud artifacts docker images delete "${IMAGE}" --quiet || true
-```
-
-Si se creó un endpoint en Vertex AI, undeploy y delete desde la consola o con `gcloud ai endpoints`.
-
-> **Clase 7, ojo:** hoy queda un servicio corriendo (a diferencia de las clases 4 y 5). Con el
-> escala a cero casi no cuesta, pero **lo que prendés, cuesta**: si no lo vas a usar, borralo con el
-> comando de arriba. Si lo dejás vivo para el TFI, verificá que la **revisión buena** es la que sirve
-> el tráfico (sin `BREAK_MODEL`): `curl -s "${SERVICE_URL}/health"` tiene que devolver `ok`.
+Si no vas a dejar el servicio vivo para defender el TFI, corré el **mismo cleanup de la clase 7**
+(servicio + imagen + repositorio de Artifact Registry).
