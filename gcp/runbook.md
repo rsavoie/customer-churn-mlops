@@ -348,6 +348,43 @@ python scripts/check_drift.py   # referencia vs ventana de producción simulada
 
 Nota 2026: parte de la documentación histórica de Vertex AI aparece hoy bajo URLs de **Gemini Enterprise Agent Platform**. Las fuentes técnicas vigentes usadas para este runbook están listadas en `SOURCES.md`.
 
+## Clase 8, integración y pre-demo
+
+La clase 8 no despliega ni construye algo nuevo: ensambla las piezas de las clases 4 a 7 en una demo
+desplegada y defendible, y verifica el **checklist de pre-demo** antes del coloquio.
+
+Si el servicio quedó borrado en el cleanup de la clase 7, redesplegalo (mismos comandos de la clase 6)
+y recuperá la URL:
+
+```bash
+gcloud run deploy "${SERVICE}" \
+  --image "${IMAGE}" \
+  --region "${REGION}" \
+  --platform managed \
+  --allow-unauthenticated \
+  --set-env-vars MODEL_BACKEND=local,MODEL_PATH=/app/models/churn-baseline.joblib
+export SERVICE_URL="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --format='value(status.url)')"
+```
+
+### Verificar el checklist de pre-demo
+
+`predemo_check.py` corre contra la URL la parte automatizable del checklist: que el servicio responda
+con el modelo cargado, que el **contrato** esté publicado, que una **predicción real** devuelva
+probabilidad y decisión, y que un dato inválido devuelva **422**. Solo librería estándar; corre en
+Cloud Shell sin instalar nada.
+
+```bash
+python scripts/predemo_check.py --url "${SERVICE_URL}"
+```
+
+Devuelve código 0 si los cuatro chequeos pasan, 1 si alguno falla (por ejemplo, un servicio en
+`degraded`, o una revisión rota que quedó sirviendo tráfico). Los puntos que no se ven desde afuera,
+secretos sin credenciales en el repo, logs y una métrica mirados en la consola, video de respaldo y
+fallback, quedan en la salida como recordatorio para tildar a mano.
+
+> Antes de la demo, mandá un request de precalentamiento (o corré `predemo_check.py` dos veces): el
+> primero paga el arranque en frío y el segundo muestra la latencia tibia real.
+
 ## Cleanup
 
 Usar cleanup al final de la clase cuando los recursos ya no se necesiten:
