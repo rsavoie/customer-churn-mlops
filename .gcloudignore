@@ -2,7 +2,7 @@
 #
 # IMPORTANTE: sin este archivo, gcloud usa .gitignore como fallback, y .gitignore
 # excluye models/*.joblib -> el contexto subiria SIN el modelo y el Dockerfile
-# hornearia una imagen sin modelo (/healthz devolveria model_loaded: false).
+# hornearia una imagen sin modelo (/health devolveria model_loaded: false).
 # Por eso aca NO excluimos models/*.joblib: lo mantenemos en el contexto para que
 # `COPY models ./models` lo incluya en la imagen.
 #

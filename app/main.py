@@ -46,8 +46,8 @@ def to_response(features: CustomerFeatures, prediction: ModelPrediction) -> Pred
     )
 
 
-@app.get("/healthz")
-def healthz() -> dict:
+@app.get("/health")
+def health() -> dict:
     try:
         backend = get_backend()
         return {

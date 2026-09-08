@@ -7,8 +7,8 @@ responde de punta a punta antes de la defensa.
 
 Chequeos automáticos (contra `--url`):
 
-  1. **Servicio accesible**  : `GET /healthz` responde y el modelo está cargado.
-  2. **Contrato publicado**  : `GET /openapi.json` expone `/healthz`, `/predict` y `/batch-score`.
+  1. **Servicio accesible**  : `GET /health` responde y el modelo está cargado.
+  2. **Contrato publicado**  : `GET /openapi.json` expone `/health`, `/predict` y `/batch-score`.
   3. **Predicción real**     : `POST /predict` con un cliente de ejemplo devuelve probabilidad y decisión.
   4. **Validación de entrada**: `POST /predict` con un dato inválido devuelve 422 (el contrato rechaza basura).
   5. **Latencia**            : mide el ida y vuelta de una predicción (informativo; el primero paga arranque en frío).
@@ -79,27 +79,27 @@ def http_post_json(url: str, body: bytes, timeout: float) -> tuple[int, bytes, f
     return status, payload, latency_ms
 
 
-def check_healthz(base: str, timeout: float) -> bool:
+def check_health(base: str, timeout: float) -> bool:
     """1. El servicio responde y el modelo esta cargado."""
-    status, body = http_get(base + "/healthz", timeout)
+    status, body = http_get(base + "/health", timeout)
     if status == 0:
-        print(f"  {FAIL} Servicio accesible: no hubo respuesta de {base}/healthz")
+        print(f"  {FAIL} Servicio accesible: no hubo respuesta de {base}/health")
         print(f"       revisa que la URL sea la correcta y que el servicio este desplegado.")
         return False
     if status != 200:
-        print(f"  {FAIL} Servicio accesible: /healthz devolvio {status}")
+        print(f"  {FAIL} Servicio accesible: /health devolvio {status}")
         return False
     try:
         data = json.loads(body)
     except ValueError:
-        print(f"  {FAIL} Servicio accesible: /healthz no devolvio JSON")
+        print(f"  {FAIL} Servicio accesible: /health no devolvio JSON")
         return False
     if not data.get("model_loaded"):
         print(f"  {FAIL} Servicio accesible: responde, pero el modelo no esta cargado "
               f"(status={data.get('status')})")
         print(f"       el servicio esta 'degraded': revisa MODEL_PATH y que el modelo este en la imagen.")
         return False
-    print(f"  {OK} Servicio accesible: /healthz ok "
+    print(f"  {OK} Servicio accesible: /health ok "
           f"(backend={data.get('backend')}, modelo={data.get('model_version')})")
     return True
 
@@ -115,11 +115,11 @@ def check_contract(base: str, timeout: float) -> bool:
     except ValueError:
         print(f"  {FAIL} Contrato publicado: /openapi.json no devolvio JSON")
         return False
-    faltan = [p for p in ("/healthz", "/predict", "/batch-score") if p not in paths]
+    faltan = [p for p in ("/health", "/predict", "/batch-score") if p not in paths]
     if faltan:
         print(f"  {FAIL} Contrato publicado: faltan endpoints en el contrato: {faltan}")
         return False
-    print(f"  {OK} Contrato publicado: /predict, /batch-score y /healthz en /openapi.json "
+    print(f"  {OK} Contrato publicado: /predict, /batch-score y /health en /openapi.json "
           f"(navegable en {base}/docs)")
     return True
 
@@ -201,7 +201,7 @@ def main() -> None:
     print("")
 
     results: list[bool] = []
-    results.append(check_healthz(base, args.timeout))
+    results.append(check_health(base, args.timeout))
     results.append(check_contract(base, args.timeout))
     ok_pred, latency_ms = check_prediction(base, args.fixture, args.timeout)
     results.append(ok_pred)

@@ -189,7 +189,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "http://127.0.0.1:8080/predict"
 Salud del servicio:
 
 ```bash
-curl -s "http://127.0.0.1:8080/healthz"
+curl -s "http://127.0.0.1:8080/health"
 ```
 
 > A diferencia de la clase 6, acá no queda nada desplegado: `uvicorn` es un proceso; al cerrar
@@ -208,7 +208,7 @@ python scripts/train_baseline.py
 > (`COPY models ./models` en el `Dockerfile`), así que el `.joblib` tiene que existir en `models/`
 > cuando se sube el contexto. El repo incluye un **`.gcloudignore`** justo para esto: sin él,
 > `gcloud builds submit` cae de vuelta en `.gitignore` (que excluye `models/*.joblib`) y hornearía
-> una imagen **sin modelo** → el servicio arranca pero `/healthz` devuelve `model_loaded: false`.
+> una imagen **sin modelo** → el servicio arranca pero `/health` devuelve `model_loaded: false`.
 > El `.gcloudignore` mantiene el `.joblib` en el contexto y deja afuera lo que la imagen no necesita.
 
 Crear Artifact Registry:
@@ -241,7 +241,7 @@ Probar el servicio:
 
 ```bash
 export SERVICE_URL="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --format='value(status.url)')"
-curl -s "${SERVICE_URL}/healthz"
+curl -s "${SERVICE_URL}/health"
 curl -s -X POST "${SERVICE_URL}/predict" \
   -H "Content-Type: application/json" \
   --data @data/fixtures/customer-example.json
@@ -311,10 +311,10 @@ gcloud run deploy "${SERVICE}" \
   --set-env-vars MODEL_BACKEND=local,MODEL_PATH=/app/models/churn-baseline.joblib,BREAK_MODEL=1
 ```
 
-Detectarlo, como lo detectaría el monitoreo: `/healthz` pasa a `degraded` y `/predict` corta con 503.
+Detectarlo, como lo detectaría el monitoreo: `/health` pasa a `degraded` y `/predict` corta con 503.
 
 ```bash
-curl -s "${SERVICE_URL}/healthz"
+curl -s "${SERVICE_URL}/health"
 python scripts/smoke_load.py --url "${SERVICE_URL}" --n 20   # ahora los códigos son 503
 ```
 
@@ -327,7 +327,7 @@ Sin reconstruir nada: se manda el 100% del tráfico a la última revisión buena
 gcloud run services update-traffic "${SERVICE}" \
   --region "${REGION}" \
   --to-revisions REVISION_BUENA=100
-curl -s "${SERVICE_URL}/healthz"   # vuelve a "ok"
+curl -s "${SERVICE_URL}/health"   # vuelve a "ok"
 ```
 
 ### 6. Drift offline (PSI)
@@ -399,4 +399,4 @@ Si se creó un endpoint en Vertex AI, undeploy y delete desde la consola o con `
 > **Clase 7, ojo:** hoy queda un servicio corriendo (a diferencia de las clases 4 y 5). Con el
 > escala a cero casi no cuesta, pero **lo que prendés, cuesta**: si no lo vas a usar, borralo con el
 > comando de arriba. Si lo dejás vivo para el TFI, verificá que la **revisión buena** es la que sirve
-> el tráfico (sin `BREAK_MODEL`): `curl -s "${SERVICE_URL}/healthz"` tiene que devolver `ok`.
+> el tráfico (sin `BREAK_MODEL`): `curl -s "${SERVICE_URL}/health"` tiene que devolver `ok`.

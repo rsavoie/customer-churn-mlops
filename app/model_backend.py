@@ -158,7 +158,7 @@ def extract_churn_probability(raw_prediction: Any) -> float:
 
 def build_backend() -> LocalModelBackend | VertexModelBackend:
     # Interruptor didáctico (clase 7): simula un despliegue roto para practicar el rollback.
-    # Con BREAK_MODEL activo la carga falla → /healthz devuelve "degraded" y /predict corta con 503,
+    # Con BREAK_MODEL activo la carga falla → /health devuelve "degraded" y /predict corta con 503,
     # sin tocar el código ni el modelo. Se prende al desplegar la "revisión mala" y se apaga al volver.
     if os.getenv("BREAK_MODEL", "").strip().lower() in ("1", "true", "yes", "on"):
         raise RuntimeError(

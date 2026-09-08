@@ -41,7 +41,7 @@ en código reproducible:
 - `scripts/verify_dataset.py` valida columnas, cantidad de filas, clases y checksum.
 - `scripts/train_baseline.py` limpia `TotalCharges`, separa train/test, excluye `customerID` y entrena una regresión logística baseline.
 - `scripts/score_batch.py` produce scoring local y ordena por prioridad de negocio.
-- `app/main.py` expone `/healthz`, `/predict` y `/batch-score`.
+- `app/main.py` expone `/health`, `/predict` y `/batch-score`.
 
 ## Reproducción local
 

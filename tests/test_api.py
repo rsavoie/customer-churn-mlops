@@ -49,9 +49,9 @@ def make_client(monkeypatch):
     return TestClient(main_module.app)
 
 
-def test_healthz_reports_loaded_model(monkeypatch):
+def test_health_reports_loaded_model(monkeypatch):
     client = make_client(monkeypatch)
-    response = client.get("/healthz")
+    response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["model_loaded"] is True
 
@@ -125,7 +125,7 @@ def test_break_model_toggle_degrades_service(monkeypatch):
     monkeypatch.setenv("BREAK_MODEL", "1")
     monkeypatch.setattr(main_module, "_backend", None)
     client = TestClient(main_module.app)
-    health = client.get("/healthz")
+    health = client.get("/health")
     assert health.status_code == 200
     assert health.json()["model_loaded"] is False
     assert client.post("/predict", json=example_payload()).status_code == 503

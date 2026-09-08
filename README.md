@@ -15,7 +15,7 @@ La idea docente es simple: en Canvas definimos qué decisión quiere tomar CRM; 
 - `scripts/download_model.py`: baja el modelo del bucket a `models/` (preparación de la **clase 5**, cuando la copia local ya no está).
 - `scripts/score_batch.py`: scoring batch local y ranking por prioridad.
 - `scripts/train_automl.py` y `scripts/batch_predict_automl.py`: demo AutoML gestionado por SDK de Vertex (se corre desde la terminal; ver `gcp/runbook.md` §Clase 4).
-- `app/`: API FastAPI con `/healthz`, `/predict` y `/batch-score`.
+- `app/`: API FastAPI con `/health`, `/predict` y `/batch-score`.
 - `gcp/runbook.md`: comandos parametrizados para Vertex AI, Artifact Registry y Cloud Run.
 
 ## Lectura pedagógica del caso
