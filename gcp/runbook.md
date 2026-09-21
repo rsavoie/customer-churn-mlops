@@ -413,3 +413,79 @@ fallback, quedan en la salida como recordatorio para tildar a mano.
 
 Si no vas a dejar el servicio vivo para defender el TFI, corré el **mismo cleanup de la clase 7**
 (servicio + imagen + repositorio de Artifact Registry).
+
+## Clase 8 (bonus), orquestación
+
+Hasta acá los pasos del caso se corrieron **a mano, uno atrás del otro**. Este bloque los
+**orquesta**: los ata en un pipeline con un gate de calidad y un disparador. El código vive en
+`pipeline/` (ver `pipeline/README.md`). Los pasos son livianos (sklearn), así que en Vertex corre
+en **minutos**, a diferencia del AutoML de la clase 4.
+
+### 1. El pipeline local (sin nube)
+
+El "modulito": encadena los scripts de siempre y corta si el modelo no llega al umbral.
+
+```bash
+python pipeline/run_local.py                 # verificar -> entrenar -> gate -> scorear
+python pipeline/run_local.py --gate-min 0.99 # fuerza que el gate corte (demo)
+```
+
+### 2. El pipeline en Vertex AI Pipelines (KFP v2)
+
+```bash
+pip install -r requirements-gcp.txt
+gcloud services enable aiplatform.googleapis.com storage.googleapis.com
+
+python pipeline/vertex_pipeline.py --compile   # compila churn_pipeline.json (no toca la nube)
+python pipeline/vertex_pipeline.py             # compila y lanza en Vertex
+```
+
+El grafo queda en la consola: **Vertex AI → Pipelines**. Cada paso es un componente en su
+contenedor; Vertex versiona los artefactos, cachea los pasos que no cambiaron y dibuja el DAG.
+
+> La opción "AutoML en canalizaciones" de la consola falla por el bug del template KFP de Google
+> (clase 4). Este pipeline es KFP v2 **escrito a mano** sobre los pasos sklearn: otro camino que sí
+> funciona.
+
+### 3. El disparador por tiempo (Cloud Scheduler + Pub/Sub)
+
+```bash
+gcloud services enable pubsub.googleapis.com cloudscheduler.googleapis.com
+gcloud pubsub topics create churn-retrain
+gcloud scheduler jobs create pubsub churn-retrain-weekly \
+  --location "${REGION}" \
+  --schedule "0 3 * * 1" \
+  --time-zone "America/Argentina/Buenos_Aires" \
+  --topic churn-retrain \
+  --message-body "scheduled-retrain"
+```
+
+Una Cloud Function suscripta al topic llama a `PipelineJob.submit()` (esbozo en
+`pipeline/trigger/README.md`). El disparo por **drift** cierra el loop de la clase 7:
+
+```bash
+python pipeline/trigger/drift_gate.py || gcloud pubsub topics publish churn-retrain --message drift
+```
+
+### 4. Infraestructura como código (Terraform)
+
+El topic y el job de arriba, declarados en vez de clickeados:
+
+```bash
+cd pipeline/terraform
+terraform init
+terraform validate
+terraform apply -var project="${PROJECT_ID}"
+```
+
+### 5. Cleanup del bonus
+
+```bash
+gcloud scheduler jobs delete churn-retrain-weekly --location "${REGION}" --quiet || true
+gcloud pubsub topics delete churn-retrain --quiet || true
+gcloud storage rm -r "gs://${BUCKET}/pipeline-root" || true
+# si aplicaste Terraform: cd pipeline/terraform && terraform destroy -var project="${PROJECT_ID}"
+```
+
+> El pipeline promueve el modelo a `gs://${BUCKET}/models/churn-baseline.joblib`, que es de donde
+> el servicio de Cloud Run lo baja: por eso el reentrenamiento cierra el loop con el despliegue.

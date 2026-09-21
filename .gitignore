@@ -9,3 +9,9 @@ data/processed/
 data/scored/
 !data/fixtures/batch-input.csv
 !data/raw/Telco-Customer-Churn.csv
+
+# Artefactos generados por la orquestación (clase 8 bonus)
+pipeline/churn_pipeline.json
+pipeline/**/.terraform/
+pipeline/**/*.tfstate
+pipeline/**/*.tfstate.*
