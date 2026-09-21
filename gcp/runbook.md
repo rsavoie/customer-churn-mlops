@@ -440,6 +440,18 @@ python pipeline/vertex_pipeline.py --compile   # compila churn_pipeline.json (no
 python pipeline/vertex_pipeline.py             # compila y lanza en Vertex
 ```
 
+> **Prerequisito de permisos (traba real del dry-run).** El pipeline corre con la **cuenta de
+> servicio de Compute** (`<projectNumber>-compute@developer.gserviceaccount.com`), que necesita
+> leer/escribir el bucket (dato de entrada y `pipeline-root`). Si no lo tiene, el run **falla al
+> crearse** con: *"Service account … does not have `[storage.objects.get]` … to the bucket"*.
+> Es el mismo grant de la clase 4; alcanza con darlo una vez por proyecto:
+>
+> ```bash
+> export SA="$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)')-compute@developer.gserviceaccount.com"
+> gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+>   --member="serviceAccount:${SA}" --role="roles/storage.admin" --condition=None
+> ```
+
 El grafo queda en la consola: **Vertex AI → Pipelines**. Cada paso es un componente en su
 contenedor; Vertex versiona los artefactos, cachea los pasos que no cambiaron y dibuja el DAG.
 
