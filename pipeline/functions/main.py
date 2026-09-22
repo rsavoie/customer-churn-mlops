@@ -18,7 +18,6 @@ Deploy (ver pipeline/trigger/README.md):
 import os
 
 import functions_framework
-from google.cloud import aiplatform
 
 
 def _resolve_project() -> str:
@@ -37,6 +36,12 @@ def _resolve_project() -> str:
 @functions_framework.cloud_event
 def trigger_retrain(cloud_event) -> None:
     """Se dispara con cada mensaje al topic churn-retrain y lanza el pipeline."""
+    # Import lazy a propósito: aiplatform es pesado y, si se importa a nivel de módulo,
+    # functions-framework tarda en levantar el server y la revisión no pasa el health
+    # check de arranque (queda en "Provisioning revision instances"). Importándolo acá,
+    # el contenedor arranca rápido y la carga pesada ocurre recién en la primera invocación.
+    from google.cloud import aiplatform
+
     project = _resolve_project()
     region = os.environ.get("REGION", "us-central1")
     bucket = os.environ.get("BUCKET", f"{project}-churn")
