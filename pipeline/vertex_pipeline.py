@@ -177,9 +177,24 @@ def resolve_project(explicit: str | None) -> str:
     return project
 
 
+def stage_template(project: str, bucket: str) -> str:
+    """Sube el template compilado a gs://<bucket>/pipeline-root/, para que lo use la Cloud
+    Function del disparador (pipeline/functions/main.py). El submit directo usa el local; la
+    Function necesita el template en GCS porque no tiene el repo a mano."""
+    from google.cloud import storage
+
+    destino = "pipeline-root/churn_pipeline.json"
+    client = storage.Client(project=project)
+    client.bucket(bucket).blob(destino).upload_from_filename(str(TEMPLATE_PATH))
+    uri = f"gs://{bucket}/{destino}"
+    print(f"Template subido a {uri} (lo usa la Cloud Function del trigger).")
+    return uri
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Pipeline de Churn en Vertex AI Pipelines (KFP v2).")
     parser.add_argument("--compile", action="store_true", help="Solo compila el JSON, sin lanzar.")
+    parser.add_argument("--stage", action="store_true", help="Compila y sube el template al bucket (para el trigger).")
     parser.add_argument("--project", default=None, help="Project ID (default: env o gcloud).")
     parser.add_argument("--region", default=os.environ.get("REGION", "us-central1"))
     parser.add_argument("--bucket", default=None, help="Bucket (default: <project>-churn).")
@@ -193,6 +208,10 @@ def main() -> None:
 
     project = resolve_project(args.project)
     bucket = args.bucket or f"{project}-churn"
+
+    if args.stage:
+        stage_template(project, bucket)
+        return
 
     from google.cloud import aiplatform
 

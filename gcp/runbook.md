@@ -472,8 +472,22 @@ gcloud scheduler jobs create pubsub churn-retrain-weekly \
   --message-body "scheduled-retrain"
 ```
 
-Una Cloud Function suscripta al topic llama a `PipelineJob.submit()` (esbozo en
-`pipeline/trigger/README.md`). El disparo por **drift** cierra el loop de la clase 7:
+El scheduler publica al topic, pero **Vertex no se suscribe solo a Pub/Sub**: el pegamento es la
+Cloud Function `pipeline/functions/main.py`, que consume el mensaje y hace `PipelineJob.submit()`.
+Para cerrar el loop de verdad, subí el template al bucket y desplegá la función:
+
+```bash
+python pipeline/vertex_pipeline.py --stage      # sube churn_pipeline.json al bucket
+gcloud services enable cloudfunctions.googleapis.com run.googleapis.com eventarc.googleapis.com
+gcloud functions deploy churn-retrain-trigger \
+  --gen2 --runtime python312 --region "${REGION}" \
+  --source pipeline/functions --entry-point trigger_retrain \
+  --trigger-topic churn-retrain \
+  --set-env-vars REGION="${REGION}",BUCKET="${BUCKET}",GATE_MIN=0.80
+```
+
+La SA de ejecución de la función necesita `roles/aiplatform.user` + acceso al bucket. Con eso, el
+disparo por **tiempo**, por **evento** o por **drift** lanza el pipeline solo (Continuous Training):
 
 ```bash
 python pipeline/trigger/drift_gate.py || gcloud pubsub topics publish churn-retrain --message drift
@@ -493,6 +507,7 @@ terraform apply -var project="${PROJECT_ID}"
 ### 5. Cleanup del bonus
 
 ```bash
+gcloud functions delete churn-retrain-trigger --region "${REGION}" --gen2 --quiet || true
 gcloud scheduler jobs delete churn-retrain-weekly --location "${REGION}" --quiet || true
 gcloud pubsub topics delete churn-retrain --quiet || true
 gcloud storage rm -r "gs://${BUCKET}/pipeline-root" || true

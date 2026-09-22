@@ -47,8 +47,10 @@ corre en su contenedor; Vertex cachea los que no cambiaron.
 ### 3. El disparador
 
 Quién dispara el pipeline (a mano, por tiempo, por evento, por drift) está en
-[`trigger/README.md`](trigger/README.md). El disparo por **drift** cierra el loop de la clase 7:
-`trigger/drift_gate.py` detecta que la población cambió y lanza el reentrenamiento solo.
+[`trigger/README.md`](trigger/README.md). Los tres disparadores automáticos publican a un topic
+de Pub/Sub, y la **Cloud Function** `functions/main.py` es el pegamento que consume el mensaje y
+hace `PipelineJob.submit()` — **es la que cierra el loop**. El disparo por **drift**
+(`trigger/drift_gate.py`) detecta que la población cambió y reentrena solo (Continuous Training).
 
 ### 4. Infraestructura como código
 

@@ -38,24 +38,40 @@ la infra versionada en git en vez de clickeada).
 ## 3. Por evento (Pub/Sub)
 
 Un evento externo dispara: llegó un archivo nuevo al bucket, cerró una fecha, se cargó un lote.
-El evento publica al topic y una **Cloud Function** suscripta lanza el pipeline. Ejemplo de la
-función (esbozo, no hace falta desplegarla para el TFI):
+El evento publica al topic y una **Cloud Function** suscripta lanza el pipeline.
 
-```python
-# functions/main.py  (Cloud Function suscripta al topic churn-retrain)
-import os
-from google.cloud import aiplatform
+## El pegamento: la Cloud Function
 
-def trigger_retrain(event, context):
-    project = os.environ["GOOGLE_CLOUD_PROJECT"]
-    bucket = f"{project}-churn"
-    aiplatform.init(project=project, location="us-central1", staging_bucket=f"gs://{bucket}")
-    aiplatform.PipelineJob(
-        display_name="churn-retrain",
-        template_path="gs://%s/pipeline-root/churn_pipeline.json" % bucket,
-        pipeline_root=f"gs://{bucket}/pipeline-root",
-        parameter_values={"bucket": bucket, "gate_min": 0.80},
-    ).submit()
+Los tres disparadores de arriba (tiempo, evento, drift) hacen lo mismo: **publican un mensaje al
+topic `churn-retrain`**. Pero Vertex no se suscribe solo a un topic; hace falta algo que escuche el
+mensaje y llame a la API. Ese pegamento es la **Cloud Function** `pipeline/functions/main.py`: está
+suscripta al topic y, ante cada mensaje, hace `PipelineJob.submit()`. **Es la que cierra el loop.**
+
+Necesita el template **compilado y en el bucket** (la función no tiene el repo a mano). Dos pasos:
+
+```bash
+# 1. Compilar y subir el template al bucket
+python pipeline/vertex_pipeline.py --stage
+
+# 2. Desplegar la función (2da gen, trigger de Pub/Sub sobre el topic)
+gcloud functions deploy churn-retrain-trigger \
+  --gen2 --runtime python312 --region "$REGION" \
+  --source pipeline/functions --entry-point trigger_retrain \
+  --trigger-topic churn-retrain \
+  --set-env-vars REGION="$REGION",BUCKET="$BUCKET",GATE_MIN=0.80
+```
+
+> **Permisos:** la cuenta de servicio de ejecución de la función necesita `roles/aiplatform.user`
+> (lanzar pipelines) y acceso al bucket (`roles/storage.admin`), igual que la SA de Compute del
+> pipeline. Si el deploy usa la SA de Compute por defecto y ya le diste `storage.admin` (ver el
+> runbook), solo falta `aiplatform.user`.
+
+Con la función desplegada, el loop queda **cerrado de verdad**: el reloj / el drift / un evento
+publican al topic → la función los consume → el pipeline corre. Probalo a mano:
+
+```bash
+gcloud pubsub topics publish churn-retrain --message "prueba"
+# y mirá el nuevo run en Vertex AI -> Pipelines
 ```
 
 ## 4. Por drift (el sistema se cuida solo)
